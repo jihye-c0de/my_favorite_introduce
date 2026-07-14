@@ -38,7 +38,8 @@ function Header() {
 
   const navLinks = [
     { label: '작품 목록', to: '/' },
-    ...(user ? [{ label: '독후감 쓰기', to: '/posts/new' }] : []),
+    { label: '게시글', to: '/posts' },
+    ...(user ? [{ label: '독후감 쓰기', to: '/posts/new' }, { label: '내 책장', to: '/my/bookshelf' }] : []),
   ];
 
   const handleLogout = async () => {

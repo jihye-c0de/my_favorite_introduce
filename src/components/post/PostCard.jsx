@@ -12,15 +12,21 @@ import { formatDate } from '../../utils/formatDate';
  *
  * Props:
  * @param {object} post - 게시물 정보 객체 [Required]
+ * @param {boolean} showWorkTitle - 연결된 작품명을 함께 표시할지 여부 [Optional, 기본값: false]
  *
  * Example usage:
- * <PostCard post={post} />
+ * <PostCard post={post} showWorkTitle />
  */
-function PostCard({ post }) {
+function PostCard({ post, showWorkTitle = false }) {
   return (
     <Card>
       <CardActionArea component={RouterLink} to={`/posts/${post.id}`}>
         <CardContent>
+          {showWorkTitle && post.mfi_works?.title && (
+            <Typography variant="caption" color="primary.main" sx={{ display: 'block', fontWeight: 600 }}>
+              {post.mfi_works.title}
+            </Typography>
+          )}
           <Typography variant="subtitle1" sx={{ fontWeight: 600 }}>
             {post.title}
           </Typography>

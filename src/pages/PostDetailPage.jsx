@@ -66,9 +66,11 @@ function PostDetailPage() {
     loadData();
   };
 
-  const handleAddComment = async (content) => {
+  const handleAddComment = async ({ content, isSpoiler }) => {
     if (!user) return;
-    await supabase.from('mfi_comments').insert({ content, author_id: user.id, post_id: Number(postId) });
+    await supabase
+      .from('mfi_comments')
+      .insert({ content, is_spoiler: isSpoiler, author_id: user.id, post_id: Number(postId) });
     loadData();
   };
 

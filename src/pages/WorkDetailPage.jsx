@@ -10,6 +10,9 @@ import Stack from '@mui/material/Stack';
 import CircularProgress from '@mui/material/CircularProgress';
 import StarRating from '../components/ui/StarRating';
 import PostCard from '../components/post/PostCard';
+import BookshelfSelector from '../components/work/BookshelfSelector';
+import BookmarkForm from '../components/work/BookmarkForm';
+import BookmarkList from '../components/work/BookmarkList';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../hooks/useAuth';
 
@@ -24,6 +27,8 @@ function WorkDetailPage() {
   const [posts, setPosts] = useState([]);
   const [averageRating, setAverageRating] = useState(0);
   const [myRating, setMyRating] = useState(0);
+  const [bookshelfStatus, setBookshelfStatus] = useState('');
+  const [bookmarks, setBookmarks] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
 
   const loadData = useCallback(async () => {
@@ -47,8 +52,30 @@ function WorkDetailPage() {
     const mine = (ratingsData ?? []).find((rating) => rating.user_id === user?.id);
     setMyRating(mine?.score ?? 0);
 
+    if (user) {
+      const [{ data: bookshelfData }, { data: bookmarksData }] = await Promise.all([
+        supabase
+          .from('mfi_bookshelf')
+          .select('status')
+          .eq('work_id', workId)
+          .eq('user_id', user.id)
+          .maybeSingle(),
+        supabase
+          .from('mfi_bookmarks')
+          .select('*')
+          .eq('work_id', workId)
+          .eq('user_id', user.id)
+          .order('created_at', { ascending: false }),
+      ]);
+      setBookshelfStatus(bookshelfData?.status ?? '');
+      setBookmarks(bookmarksData ?? []);
+    } else {
+      setBookshelfStatus('');
+      setBookmarks([]);
+    }
+
     setIsLoading(false);
-  }, [workId, user?.id]);
+  }, [workId, user]);
 
   useEffect(() => {
     loadData();
@@ -59,6 +86,30 @@ function WorkDetailPage() {
     await supabase
       .from('mfi_ratings')
       .upsert({ user_id: user.id, work_id: Number(workId), score: newValue }, { onConflict: 'user_id,work_id' });
+    loadData();
+  };
+
+  const handleChangeBookshelfStatus = async (status) => {
+    if (!user) return;
+    await supabase
+      .from('mfi_bookshelf')
+      .upsert(
+        { user_id: user.id, work_id: Number(workId), status, updated_at: new Date().toISOString() },
+        { onConflict: 'user_id,work_id' },
+      );
+    loadData();
+  };
+
+  const handleAddBookmark = async ({ chapter, memo }) => {
+    if (!user) return;
+    await supabase
+      .from('mfi_bookmarks')
+      .insert({ user_id: user.id, work_id: Number(workId), chapter, memo: memo || null });
+    loadData();
+  };
+
+  const handleDeleteBookmark = async (bookmarkId) => {
+    await supabase.from('mfi_bookmarks').delete().eq('id', bookmarkId);
     loadData();
   };
 
@@ -102,6 +153,24 @@ function WorkDetailPage() {
           </Typography>
           <StarRating value={myRating} onChange={handleRate} />
         </Box>
+      )}
+
+      {user && (
+        <>
+          <Box sx={{ mt: 3 }}>
+            <BookshelfSelector value={bookshelfStatus} onChange={handleChangeBookshelfStatus} />
+          </Box>
+
+          <Box sx={{ mt: 3 }}>
+            <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
+              책갈피/메모
+            </Typography>
+            <BookmarkForm onSubmit={handleAddBookmark} />
+            <Box sx={{ mt: 1 }}>
+              <BookmarkList bookmarks={bookmarks} onDelete={handleDeleteBookmark} />
+            </Box>
+          </Box>
+        </>
       )}
 
       <Divider sx={{ my: { xs: 3, md: 4 } }} />
