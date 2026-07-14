@@ -8,6 +8,7 @@ import Chip from '@mui/material/Chip';
 import Box from '@mui/material/Box';
 import StarRating from '../ui/StarRating';
 import TagList from './TagList';
+import { getStatusChipColor } from '../../utils/workStatus';
 
 /**
  * WorkCard 컴포넌트
@@ -49,7 +50,10 @@ function WorkCard({ work, averageRating = 0, tags = [] }) {
           )}
         </CardMedia>
         <CardContent>
-          <Chip label={work.work_type} size="small" color="secondary" sx={{ mb: 1 }} />
+          <Box sx={{ display: 'flex', gap: 0.5, mb: 1 }}>
+            <Chip label={work.work_type} size="small" color="secondary" />
+            {work.status && <Chip label={work.status} size="small" color={getStatusChipColor(work.status)} />}
+          </Box>
           <Typography variant="h6" component="h2" sx={{ fontSize: { xs: '1rem', md: '1.1rem' } }}>
             {work.title}
           </Typography>

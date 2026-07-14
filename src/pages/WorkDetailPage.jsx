@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
-import { useParams } from 'react-router-dom';
+import { useParams, Link as RouterLink } from 'react-router-dom';
 import Container from '@mui/material/Container';
 import Box from '@mui/material/Box';
 import Typography from '@mui/material/Typography';
@@ -14,6 +14,7 @@ import CommentForm from '../components/post/CommentForm';
 import CommentItem from '../components/post/CommentItem';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../hooks/useAuth';
+import { getStatusChipColor } from '../utils/workStatus';
 
 /**
  * WorkDetailPage 컴포넌트
@@ -25,9 +26,11 @@ function WorkDetailPage() {
   const { user } = useAuth();
   const [work, setWork] = useState(null);
   const [comments, setComments] = useState([]);
+  const [commentLikes, setCommentLikes] = useState({});
   const [averageRating, setAverageRating] = useState(0);
   const [myRating, setMyRating] = useState(0);
   const [bookshelfStatus, setBookshelfStatus] = useState('');
+  const [universeWorks, setUniverseWorks] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
 
   const loadData = useCallback(async () => {
@@ -45,11 +48,39 @@ function WorkDetailPage() {
     setWork(workData);
     setComments(commentsData ?? []);
 
+    const commentIds = (commentsData ?? []).map((comment) => comment.id);
+    if (commentIds.length > 0) {
+      const { data: commentLikesData } = await supabase
+        .from('mfi_likes')
+        .select('user_id, target_id')
+        .eq('target_type', 'comment')
+        .in('target_id', commentIds);
+      const grouped = {};
+      (commentLikesData ?? []).forEach((like) => {
+        if (!grouped[like.target_id]) grouped[like.target_id] = [];
+        grouped[like.target_id].push(like.user_id);
+      });
+      setCommentLikes(grouped);
+    } else {
+      setCommentLikes({});
+    }
+
     const scores = (ratingsData ?? []).map((rating) => rating.score);
     setAverageRating(scores.length ? scores.reduce((sum, score) => sum + score, 0) / scores.length : 0);
 
     const mine = (ratingsData ?? []).find((rating) => rating.user_id === user?.id);
     setMyRating(mine?.score ?? 0);
+
+    if (workData?.universe) {
+      const { data: universeData } = await supabase
+        .from('mfi_works')
+        .select('id, title, work_type')
+        .eq('universe', workData.universe)
+        .neq('id', workId);
+      setUniverseWorks(universeData ?? []);
+    } else {
+      setUniverseWorks([]);
+    }
 
     if (user) {
       const { data: bookshelfData } = await supabase
@@ -102,6 +133,22 @@ function WorkDetailPage() {
     loadData();
   };
 
+  const handleToggleCommentLike = async (commentId) => {
+    if (!user) return;
+    const likedUserIds = commentLikes[commentId] ?? [];
+    if (likedUserIds.includes(user.id)) {
+      await supabase
+        .from('mfi_likes')
+        .delete()
+        .eq('user_id', user.id)
+        .eq('target_type', 'comment')
+        .eq('target_id', commentId);
+    } else {
+      await supabase.from('mfi_likes').insert({ user_id: user.id, target_type: 'comment', target_id: commentId });
+    }
+    loadData();
+  };
+
   if (isLoading) {
     return (
       <Box sx={{ display: 'flex', justifyContent: 'center', py: 8 }}>
@@ -118,9 +165,21 @@ function WorkDetailPage() {
     );
   }
 
+  let bestCommentId = null;
+  let bestLikeCount = 0;
+  Object.entries(commentLikes).forEach(([id, likers]) => {
+    if (likers.length > bestLikeCount) {
+      bestLikeCount = likers.length;
+      bestCommentId = Number(id);
+    }
+  });
+
   return (
     <Container maxWidth="md" sx={{ py: { xs: 3, md: 5 } }}>
-      <Chip label={work.work_type} color="secondary" size="small" sx={{ mb: 1 }} />
+      <Box sx={{ display: 'flex', gap: 0.5, mb: 1 }}>
+        <Chip label={work.work_type} color="secondary" size="small" />
+        {work.status && <Chip label={work.status} size="small" color={getStatusChipColor(work.status)} />}
+      </Box>
       <Typography variant="h4" component="h1" sx={{ fontSize: { xs: '1.7rem', md: '2.2rem' } }}>
         {work.title}
       </Typography>
@@ -131,6 +190,33 @@ function WorkDetailPage() {
       <Box sx={{ mt: 1 }}>
         <TagList tags={(work.mfi_work_tags ?? []).map((workTag) => workTag.mfi_tags?.name).filter(Boolean)} />
       </Box>
+
+      {work.synopsis && (
+        <Typography variant="body2" sx={{ mt: 2, lineHeight: 1.7 }}>
+          {work.synopsis}
+        </Typography>
+      )}
+
+      {universeWorks.length > 0 && (
+        <Box sx={{ mt: 2 }}>
+          <Typography variant="body2" color="text.secondary" sx={{ mb: 0.5 }}>
+            {work.universe} 세계관의 다른 작품
+          </Typography>
+          <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
+            {universeWorks.map((relatedWork) => (
+              <Chip
+                key={relatedWork.id}
+                label={`${relatedWork.title} (${relatedWork.work_type})`}
+                component={RouterLink}
+                to={`/works/${relatedWork.id}`}
+                clickable
+                size="small"
+                variant="outlined"
+              />
+            ))}
+          </Stack>
+        </Box>
+      )}
 
       <Box sx={{ mt: 2 }}>
         <Typography variant="body2" color="text.secondary">
@@ -175,6 +261,11 @@ function WorkDetailPage() {
             comment={comment}
             isOwner={user?.id === comment.author_id}
             onDelete={handleDeleteComment}
+            likeCount={(commentLikes[comment.id] ?? []).length}
+            isLiked={(commentLikes[comment.id] ?? []).includes(user?.id)}
+            onToggleLike={handleToggleCommentLike}
+            isLikeDisabled={!user}
+            isBest={bestCommentId === comment.id}
           />
         ))}
       </Stack>

@@ -24,6 +24,7 @@ function PostDetailPage() {
   const navigate = useNavigate();
   const [post, setPost] = useState(null);
   const [comments, setComments] = useState([]);
+  const [commentLikes, setCommentLikes] = useState({});
   const [likeCount, setLikeCount] = useState(0);
   const [isLiked, setIsLiked] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
@@ -44,6 +45,24 @@ function PostDetailPage() {
     setComments(commentsData ?? []);
     setLikeCount((likesData ?? []).length);
     setIsLiked((likesData ?? []).some((like) => like.user_id === user?.id));
+
+    const commentIds = (commentsData ?? []).map((comment) => comment.id);
+    if (commentIds.length > 0) {
+      const { data: commentLikesData } = await supabase
+        .from('mfi_likes')
+        .select('user_id, target_id')
+        .eq('target_type', 'comment')
+        .in('target_id', commentIds);
+      const grouped = {};
+      (commentLikesData ?? []).forEach((like) => {
+        if (!grouped[like.target_id]) grouped[like.target_id] = [];
+        grouped[like.target_id].push(like.user_id);
+      });
+      setCommentLikes(grouped);
+    } else {
+      setCommentLikes({});
+    }
+
     setIsLoading(false);
   }, [postId, user?.id]);
 
@@ -79,6 +98,22 @@ function PostDetailPage() {
     loadData();
   };
 
+  const handleToggleCommentLike = async (commentId) => {
+    if (!user) return;
+    const likedUserIds = commentLikes[commentId] ?? [];
+    if (likedUserIds.includes(user.id)) {
+      await supabase
+        .from('mfi_likes')
+        .delete()
+        .eq('user_id', user.id)
+        .eq('target_type', 'comment')
+        .eq('target_id', commentId);
+    } else {
+      await supabase.from('mfi_likes').insert({ user_id: user.id, target_type: 'comment', target_id: commentId });
+    }
+    loadData();
+  };
+
   const handleDeletePost = async () => {
     if (!window.confirm('게시물을 삭제할까요?')) return;
     await supabase.from('mfi_posts').delete().eq('id', postId);
@@ -102,6 +137,15 @@ function PostDetailPage() {
   }
 
   const isOwner = user?.id === post.author_id;
+
+  let bestCommentId = null;
+  let bestLikeCount = 0;
+  Object.entries(commentLikes).forEach(([id, likers]) => {
+    if (likers.length > bestLikeCount) {
+      bestLikeCount = likers.length;
+      bestCommentId = Number(id);
+    }
+  });
 
   return (
     <Container maxWidth="md" sx={{ py: { xs: 3, md: 5 } }}>
@@ -157,6 +201,11 @@ function PostDetailPage() {
             comment={comment}
             isOwner={user?.id === comment.author_id}
             onDelete={handleDeleteComment}
+            likeCount={(commentLikes[comment.id] ?? []).length}
+            isLiked={(commentLikes[comment.id] ?? []).includes(user?.id)}
+            onToggleLike={handleToggleCommentLike}
+            isLikeDisabled={!user}
+            isBest={bestCommentId === comment.id}
           />
         ))}
       </Stack>
