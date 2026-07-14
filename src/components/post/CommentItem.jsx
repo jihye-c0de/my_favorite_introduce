@@ -29,8 +29,9 @@ function CommentItem({ comment, isOwner = false, onDelete }) {
     <Box sx={{ py: 1.5, borderBottom: '1px solid', borderColor: 'divider' }}>
       <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
         <Box sx={{ flexGrow: 1 }}>
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, flexWrap: 'wrap' }}>
             <Typography variant="subtitle2">{comment.mfi_users?.name ?? '알 수 없음'}</Typography>
+            {comment.chapter && <Chip label={comment.chapter} size="small" variant="outlined" />}
             {comment.is_spoiler && <Chip label="스포일러" size="small" color="warning" />}
           </Box>
 
