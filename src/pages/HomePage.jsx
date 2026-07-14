@@ -20,7 +20,10 @@ function HomePage() {
     const loadWorks = async () => {
       setIsLoading(true);
       const [{ data: worksData }, { data: ratingsData }] = await Promise.all([
-        supabase.from('mfi_works').select('*').order('created_at', { ascending: false }),
+        supabase
+          .from('mfi_works')
+          .select('*, mfi_work_tags(mfi_tags(name))')
+          .order('created_at', { ascending: false }),
         supabase.from('mfi_ratings').select('work_id, score'),
       ]);
 
@@ -62,7 +65,11 @@ function HomePage() {
         <Grid container spacing={{ xs: 2, md: 3 }}>
           {works.map((work) => (
             <Grid key={work.id} size={{ xs: 12, sm: 6, md: 4 }}>
-              <WorkCard work={work} averageRating={ratingMap[work.id] ?? 0} />
+              <WorkCard
+                work={work}
+                averageRating={ratingMap[work.id] ?? 0}
+                tags={(work.mfi_work_tags ?? []).map((workTag) => workTag.mfi_tags?.name).filter(Boolean)}
+              />
             </Grid>
           ))}
         </Grid>

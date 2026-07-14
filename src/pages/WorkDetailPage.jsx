@@ -13,6 +13,7 @@ import PostCard from '../components/post/PostCard';
 import BookshelfSelector from '../components/work/BookshelfSelector';
 import BookmarkForm from '../components/work/BookmarkForm';
 import BookmarkList from '../components/work/BookmarkList';
+import TagList from '../components/work/TagList';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../hooks/useAuth';
 
@@ -34,7 +35,7 @@ function WorkDetailPage() {
   const loadData = useCallback(async () => {
     setIsLoading(true);
     const [{ data: workData }, { data: postsData }, { data: ratingsData }] = await Promise.all([
-      supabase.from('mfi_works').select('*').eq('id', workId).single(),
+      supabase.from('mfi_works').select('*, mfi_work_tags(mfi_tags(name))').eq('id', workId).single(),
       supabase
         .from('mfi_posts')
         .select('*, mfi_users(name)')
@@ -138,6 +139,10 @@ function WorkDetailPage() {
       <Typography variant="body1" color="text.secondary" sx={{ mt: 0.5 }}>
         {work.author}
       </Typography>
+
+      <Box sx={{ mt: 1 }}>
+        <TagList tags={(work.mfi_work_tags ?? []).map((workTag) => workTag.mfi_tags?.name).filter(Boolean)} />
+      </Box>
 
       <Box sx={{ mt: 2 }}>
         <Typography variant="body2" color="text.secondary">

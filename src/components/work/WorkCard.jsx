@@ -7,6 +7,7 @@ import Typography from '@mui/material/Typography';
 import Chip from '@mui/material/Chip';
 import Box from '@mui/material/Box';
 import StarRating from '../ui/StarRating';
+import TagList from './TagList';
 
 /**
  * WorkCard 컴포넌트
@@ -15,11 +16,12 @@ import StarRating from '../ui/StarRating';
  * Props:
  * @param {object} work - 작품 정보 객체 [Required]
  * @param {number} averageRating - 평균 별점 [Optional, 기본값: 0]
+ * @param {Array} tags - 작품 태그 이름 배열 [Optional]
  *
  * Example usage:
- * <WorkCard work={work} averageRating={4.2} />
+ * <WorkCard work={work} averageRating={4.2} tags={['판타지', '회귀']} />
  */
-function WorkCard({ work, averageRating = 0 }) {
+function WorkCard({ work, averageRating = 0, tags = [] }) {
   return (
     <Card sx={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
       <CardActionArea component={RouterLink} to={`/works/${work.id}`} sx={{ flexGrow: 1 }}>
@@ -55,6 +57,11 @@ function WorkCard({ work, averageRating = 0 }) {
             {work.author}
           </Typography>
           <StarRating value={averageRating} isReadOnly />
+          {tags.length > 0 && (
+            <Box sx={{ mt: 1 }}>
+              <TagList tags={tags} />
+            </Box>
+          )}
         </CardContent>
       </CardActionArea>
     </Card>
